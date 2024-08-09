@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/blondon1/ai_driven_network_forensics_tool/src/analysis"
 	"github.com/blondon1/ai_driven_network_forensics_tool/src/data_ingestion"
 	"github.com/blondon1/ai_driven_network_forensics_tool/src/preprocessing"
 )
@@ -14,5 +15,6 @@ func main() {
 
 	for packet := range packets {
 		preprocessing.PreprocessPacket(packet)
+		analysis.AnalyzePacket(packet)
 	}
 }
