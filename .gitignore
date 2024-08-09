@@ -1,0 +1,7 @@
+# Ignore system logs
+data/logs/*.log
+
+# Ignore other temporary files or directories
+*.tmp
+*.bak
+*.swp
