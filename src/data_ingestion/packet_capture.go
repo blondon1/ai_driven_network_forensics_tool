@@ -18,4 +18,3 @@ func CapturePackets(interfaceName string, packets chan<- gopacket.Packet) {
         packets <- packet
     }
 }
-
