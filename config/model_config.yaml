@@ -1,0 +1,5 @@
+# Model Configuration
+
+model_name: "anomaly_detection_model"
+model_checkpoint_path: "models/checkpoints"
+model_trained_path: "models/trained"

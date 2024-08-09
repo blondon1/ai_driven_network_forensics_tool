@@ -1,0 +1,4 @@
+# System Configuration
+
+network_interface: "eth0"
+log_file_path: "data/logs/system.log"
