@@ -39,11 +39,29 @@ func loadConfig() (SystemConfig, error) {
 	return config, nil
 }
 
+func setupLogging(logFilePath string) (*os.File, error) {
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	return logFile, nil
+}
+
 func main() {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal("Failed to load configuration:", err)
 	}
+
+	logFile, err := setupLogging(config.LogFilePath)
+	if err != nil {
+		log.Fatal("Failed to set up logging:", err)
+	}
+	defer logFile.Close()
+
+	log.Println("Starting AI-Driven Network Forensics Tool")
 
 	packets := make(chan gopacket.Packet)
 
@@ -57,4 +75,6 @@ func main() {
 		real_time_analysis.AnalyzeInRealTime(packet)
 		reporting.GenerateReport(packet)
 	}
+
+	log.Println("Shutting down AI-Driven Network Forensics Tool")
 }
