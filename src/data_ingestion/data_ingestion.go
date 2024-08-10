@@ -78,3 +78,59 @@ func storePacketMetadata(packet gopacket.Packet) {
 		log.Println("Failed to insert packet data:", err)
 	}
 }
+
+// FilterConfig holds the filtering criteria
+type FilterConfig struct {
+	SourceIP      string
+	DestinationIP string
+	Protocol      string
+	Port          string
+	BPF           string // Berkeley Packet Filter string for advanced filtering
+}
+
+// filterPacket filters packets based on the criteria in FilterConfig
+func filterPacket(packet gopacket.Packet, config FilterConfig) bool {
+	if config.SourceIP != "" {
+		if ipLayer := packet.Layer(gopacket.LayerTypeIPv4); ipLayer != nil {
+			ip, _ := ipLayer.(*gopacket.LayerTypeIPv4)
+			if !strings.Contains(ip.SrcIP.String(), config.SourceIP) {
+				return false
+			}
+		}
+	}
+
+	if config.DestinationIP != "" {
+		if ipLayer := packet.Layer(gopacket.LayerTypeIPv4); ipLayer != nil {
+			ip, _ := ipLayer.(*gopacket.LayerTypeIPv4)
+			if !strings.Contains(ip.DstIP.String(), config.DestinationIP) {
+				return false
+			}
+		}
+	}
+
+	if config.Protocol != "" {
+		if ipLayer := packet.Layer(gopacket.LayerTypeIPv4); ipLayer != nil {
+			ip, _ := ipLayer.(*gopacket.LayerTypeIPv4)
+			if !strings.EqualFold(ip.Protocol.String(), config.Protocol) {
+				return false
+			}
+		}
+	}
+
+	if config.Port != "" {
+		if tcpLayer := packet.Layer(gopacket.LayerTypeTCP); tcpLayer != nil {
+			tcp, _ := tcpLayer.(*gopacket.LayerTypeTCP)
+			if tcp.SrcPort.String() != config.Port && tcp.DstPort.String() != config.Port {
+				return false
+			}
+		}
+		if udpLayer := packet.Layer(gopacket.LayerTypeUDP); udpLayer != nil {
+			udp, _ := udpLayer.(*gopacket.LayerTypeUDP)
+			if udp.SrcPort.String() != config.Port && udp.DstPort.String() != config.Port {
+				return false
+			}
+		}
+	}
+
+	return true
+}
