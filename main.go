@@ -64,6 +64,10 @@ func main() {
 		data_ingestion.CapturePackets(config.NetworkInterface, packets, config.Filter)
 	}()
 
+	go func() {
+		ui.StartServer()
+	}()
+
 	for packet := range packets {
 		preprocessing.PreprocessPacket(packet)
 		analysis.AnalyzePacket(packet)

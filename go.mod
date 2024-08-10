@@ -7,4 +7,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require golang.org/x/sys v0.0.0-20190412213103-97732733099d // indirect
+require (
+	github.com/go-echarts/go-echarts/v2 v2.4.1 // indirect
+	golang.org/x/sys v0.0.0-20190412213103-97732733099d // indirect
+)
