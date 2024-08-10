@@ -12,3 +12,7 @@ filter:
 
 incident_response:
   HighPacketSizeDetected: "sh -c 'echo \"High packet size detected\" | mail -s \"Network Alert\" admin@example.com'"
+
+authentication:
+  username: "admin"
+  password: "password"

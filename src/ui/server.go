@@ -2,6 +2,7 @@ package ui
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/components"
@@ -12,14 +13,16 @@ import (
 	"strings"
 )
 
-func StartServer() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/charts", http.StatusFound)
-	})
+var (
+	username = "admin"
+	password = "password"
+)
 
-	http.HandleFunc("/charts", trafficChartHandler)
-	http.HandleFunc("/alerts", alertsHandler)
-	http.HandleFunc("/historical", historicalDataHandler)
+func StartServer() {
+	http.HandleFunc("/", basicAuth(trafficChartHandler))
+	http.HandleFunc("/charts", basicAuth(trafficChartHandler))
+	http.HandleFunc("/alerts", basicAuth(alertsHandler))
+	http.HandleFunc("/historical", basicAuth(historicalDataHandler))
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -44,6 +47,30 @@ func StartServer() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+// basicAuth is a middleware function that provides basic HTTP authentication
+func basicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok || !validateCredentials(user, pass) {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+// validateCredentials checks if the provided username and password are correct
+func validateCredentials(user, pass string) bool {
+	return user == username && pass == password
+}
+
+func trafficChartHandler(w http.ResponseWriter, r *http.Request) {
+	page := components.NewPage()
+	page.AddCharts(generateTrafficLineChart())
+	page.Render(w)
 }
 
 func historicalDataHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +110,6 @@ func historicalDataHandler(w http.ResponseWriter, r *http.Request) {
 			timestamp, sourceIP, destinationIP, protocol, size))
 	}
 	w.Write([]byte(result.String()))
-}
-
-func trafficChartHandler(w http.ResponseWriter, r *http.Request) {
-	page := components.NewPage()
-	page.AddCharts(generateTrafficLineChart())
-	page.Render(w)
 }
 
 func generateTrafficLineChart() *charts.Line {

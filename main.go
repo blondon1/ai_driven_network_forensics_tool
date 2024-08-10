@@ -17,6 +17,10 @@ type SystemConfig struct {
 	NetworkInterface string                      `yaml:"network_interface"`
 	LogFilePath      string                      `yaml:"log_file_path"`
 	Filter           data_ingestion.FilterConfig `yaml:"filter"`
+	Authentication   struct {
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
+	} `yaml:"authentication"`
 }
 
 func loadConfig() (SystemConfig, error) {
@@ -49,6 +53,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+
+	ui.username = config.Authentication.Username
+	ui.password = config.Authentication.Password
 
 	logFile, err := setupLogging(config.LogFilePath)
 	if err != nil {
