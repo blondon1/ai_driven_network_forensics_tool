@@ -1,18 +1,15 @@
 package ui
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/http"
-	"sync"
-	"time"
-)
-
-var (
-	packetCountPerMinute = make(map[string]int)
-	packetCountMutex     sync.Mutex
+	"strings"
 )
 
 func StartServer() {
@@ -22,6 +19,7 @@ func StartServer() {
 
 	http.HandleFunc("/charts", trafficChartHandler)
 	http.HandleFunc("/alerts", alertsHandler)
+	http.HandleFunc("/historical", historicalDataHandler)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -46,6 +44,45 @@ func StartServer() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+func historicalDataHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("query")
+	if query == "" {
+		query = "SELECT * FROM packets ORDER BY timestamp DESC LIMIT 100"
+	}
+
+	db, err := sql.Open("sqlite3", "data/packets.db")
+	if err != nil {
+		log.Println("Failed to open database:", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Println("Failed to execute query:", err)
+		http.Error(w, "Query error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var result strings.Builder
+	for rows.Next() {
+		var id int
+		var timestamp, sourceIP, destinationIP, protocol string
+		var size int
+		err := rows.Scan(&id, &timestamp, &sourceIP, &destinationIP, &protocol, &size)
+		if err != nil {
+			log.Println("Failed to scan row:", err)
+			http.Error(w, "Row scan error", http.StatusInternalServerError)
+			return
+		}
+		result.WriteString(fmt.Sprintf("%s %s -> %s %s %d bytes\n",
+			timestamp, sourceIP, destinationIP, protocol, size))
+	}
+	w.Write([]byte(result.String()))
 }
 
 func trafficChartHandler(w http.ResponseWriter, r *http.Request) {

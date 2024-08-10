@@ -1,14 +1,14 @@
 package data_ingestion
 
 import (
+	"database/sql"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
-	"strings"
+	"time"
 )
 
-// CapturePackets captures packets from the network interface and applies filtering
 func CapturePackets(interfaceName string, packets chan<- gopacket.Packet, filterConfig FilterConfig) {
 	handle, err := pcap.OpenLive(interfaceName, 1600, true, pcap.BlockForever)
 	if err != nil {
@@ -28,63 +28,53 @@ func CapturePackets(interfaceName string, packets chan<- gopacket.Packet, filter
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
 		if filterPacket(packet, filterConfig) {
+			storePacketMetadata(packet) // Store metadata
 			packets <- packet
 		}
 	}
 }
 
-// FilterConfig holds the filtering criteria
-type FilterConfig struct {
-	SourceIP      string
-	DestinationIP string
-	Protocol      string
-	Port          string
-	BPF           string // Berkeley Packet Filter string for advanced filtering
-}
+// StorePacketMetadata saves packet metadata to the SQLite database
+func storePacketMetadata(packet gopacket.Packet) {
+	db, err := sql.Open("sqlite3", "data/packets.db")
+	if err != nil {
+		log.Println("Failed to open database:", err)
+		return
+	}
+	defer db.Close()
 
-// filterPacket filters packets based on the criteria in FilterConfig
-func filterPacket(packet gopacket.Packet, config FilterConfig) bool {
-	if config.SourceIP != "" {
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ip, _ := ipLayer.(*layers.IPv4)
-			if !strings.Contains(ip.SrcIP.String(), config.SourceIP) {
-				return false
-			}
-		}
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS packets (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME,
+		source_ip TEXT,
+		destination_ip TEXT,
+		protocol TEXT,
+		size INTEGER
+	)`)
+	if err != nil {
+		log.Println("Failed to create table:", err)
+		return
 	}
 
-	if config.DestinationIP != "" {
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ip, _ := ipLayer.(*layers.IPv4)
-			if !strings.Contains(ip.DstIP.String(), config.DestinationIP) {
-				return false
-			}
-		}
+	ipLayer := packet.Layer(gopacket.LayerTypeIPv4)
+	if ipLayer == nil {
+		log.Println("No IP layer found in packet")
+		return
 	}
 
-	if config.Protocol != "" {
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ip, _ := ipLayer.(*layers.IPv4)
-			if !strings.EqualFold(ip.Protocol.String(), config.Protocol) {
-				return false
-			}
-		}
-	}
+	ip, _ := ipLayer.(*gopacket.LayerTypeIPv4)
+	protocol := ip.Protocol.String()
+	size := len(packet.Data())
 
-	if config.Port != "" {
-		if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
-			tcp, _ := tcpLayer.(*layers.TCP)
-			if tcp.SrcPort.String() != config.Port && tcp.DstPort.String() != config.Port {
-				return false
-			}
-		}
-		if udpLayer := packet.Layer(layers.LayerTypeUDP); udpLayer != nil {
-			udp, _ := udpLayer.(*layers.UDP)
-			if udp.SrcPort.String() != config.Port && udp.DstPort.String() != config.Port {
-				return false
-			}
-		}
+	_, err = db.Exec(`INSERT INTO packets (timestamp, source_ip, destination_ip, protocol, size)
+		VALUES (?, ?, ?, ?, ?)`,
+		time.Now(),
+		ip.SrcIP.String(),
+		ip.DstIP.String(),
+		protocol,
+		size,
+	)
+	if err != nil {
+		log.Println("Failed to insert packet data:", err)
 	}
-
-	return true
 }
