@@ -1,12 +1,10 @@
 package ui
 
 import (
-    "fmt"
     "github.com/go-echarts/go-echarts/v2/charts"
     "github.com/go-echarts/go-echarts/v2/components"
     "github.com/go-echarts/go-echarts/v2/opts"
     "github.com/gorilla/websocket"
-    "html/template"
     "log"
     "net/http"
     "sync"
@@ -14,49 +12,26 @@ import (
 )
 
 var (
-    alertsMutex       sync.Mutex
-    alertsConn        []*websocket.Conn
-    upgrader          = websocket.Upgrader{
+    alertsMutex         sync.Mutex
+    alertsConn          []*websocket.Conn
+    packetCountMutex    sync.Mutex
+    packetCountPerMinute = make(map[string]int)
+    protocolCounts      = map[string]int{
+        "TCP":  0,
+        "UDP":  0,
+        "ICMP": 0,
+        "Other": 0,
+    }
+    upgrader = websocket.Upgrader{
         ReadBufferSize:  1024,
         WriteBufferSize: 1024,
         CheckOrigin:     func(r *http.Request) bool { return true },
     }
-    packetCountMutex     sync.Mutex
-    packetCountPerMinute = make(map[string]int)
-    alertChannel         = make(chan string)
 )
 
 func StartServer() {
     http.HandleFunc("/", dashboardHandler)
-    http.HandleFunc("/charts", trafficChartHandler)
-    http.HandleFunc("/alerts", alertsHandler)
-    http.HandleFunc("/historical", historicalDataHandler)
-
-    http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-        conn, err := upgrader.Upgrade(w, r, nil)
-        if err != nil {
-            log.Println("Failed to set up WebSocket:", err)
-            return
-        }
-        defer conn.Close()
-        alertsMutex.Lock()
-        alertsConn = append(alertsConn, conn)
-        alertsMutex.Unlock()
-
-        for {
-            _, _, err := conn.ReadMessage()
-            if err != nil {
-                break
-            }
-        }
-    })
-
-    go func() {
-        for alert := range alertChannel {
-            BroadcastAlert(alert)
-        }
-    }()
-
+    http.HandleFunc("/ws", websocketHandler)
     log.Println("Starting web server on :8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatal("Failed to start server:", err)
@@ -65,69 +40,27 @@ func StartServer() {
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
     page := components.NewPage()
-    page.AddCharts(generateTrafficLineChart(), generateTrafficBarChart())
+    page.AddCharts(generateTrafficLineChart(), generateProtocolPieChart())
     page.Render(w)
 }
 
-func trafficChartHandler(w http.ResponseWriter, r *http.Request) {
-    page := components.NewPage()
-    page.AddCharts(generateTrafficLineChart())
-    page.Render(w)
-}
-
-func alertsHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Real-time Alerts will be displayed here")
-}
-
-func historicalDataHandler(w http.ResponseWriter, r *http.Request) {
-    tpl := `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Historical Data</title>
-    </head>
-    <body>
-        <h1>Historical Data</h1>
-        <table border="1">
-            <tr>
-                <th>Timestamp</th>
-                <th>Source IP</th>
-                <th>Destination IP</th>
-                <th>Protocol</th>
-                <th>Size</th>
-            </tr>
-            {{range .}}
-            <tr>
-                <td>{{.Timestamp}}</td>
-                <td>{{.SourceIP}}</td>
-                <td>{{.DestinationIP}}</td>
-                <td>{{.Protocol}}</td>
-                <td>{{.Size}}</td>
-            </tr>
-            {{end}}
-        </table>
-    </body>
-    </html>`
-
-    // Example data, replace this with actual data retrieval
-    data := []struct {
-        Timestamp     string
-        SourceIP      string
-        DestinationIP string
-        Protocol      string
-        Size          int
-    }{
-        {"2024-08-12 10:00:00", "192.168.1.1", "192.168.1.2", "TCP", 1500},
-        {"2024-08-12 10:01:00", "192.168.1.2", "192.168.1.1", "UDP", 512},
-    }
-
-    t, err := template.New("table").Parse(tpl)
+func websocketHandler(w http.ResponseWriter, r *http.Request) {
+    conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        log.Println("Failed to set up WebSocket:", err)
         return
     }
+    defer conn.Close()
+    alertsMutex.Lock()
+    alertsConn = append(alertsConn, conn)
+    alertsMutex.Unlock()
 
-    t.Execute(w, data)
+    for {
+        _, _, err := conn.ReadMessage()
+        if err != nil {
+            break
+        }
+    }
 }
 
 func generateTrafficLineChart() *charts.Line {
@@ -139,58 +72,54 @@ func generateTrafficLineChart() *charts.Line {
     packetCountMutex.Lock()
     defer packetCountMutex.Unlock()
 
-    // Prepare data
     var times []string
     var counts []opts.LineData
     for timeStr, count := range packetCountPerMinute {
         times = append(times, timeStr)
         counts = append(counts, opts.LineData{Value: count})
     }
-
+    smoothValue := true
     line.SetXAxis(times).
-        AddSeries("Packets per Minute", counts)
+        AddSeries("Packets per Minute", counts).
+        SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{
+            Smooth: &smoothValue,  // Passed as a pointer
+        }))
 
     return line
 }
 
-func generateTrafficBarChart() *charts.Bar {
-    bar := charts.NewBar()
-    bar.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
-        Title: "Network Traffic Distribution",
+func generateProtocolPieChart() *charts.Pie {
+    pie := charts.NewPie()
+    pie.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
+        Title: "Protocol Distribution",
     }))
 
-    packetCountMutex.Lock()
-    defer packetCountMutex.Unlock()
+    pie.AddSeries("Protocol", []opts.PieData{
+        {Name: "TCP", Value: protocolCounts["TCP"]},
+        {Name: "UDP", Value: protocolCounts["UDP"]},
+        {Name: "ICMP", Value: protocolCounts["ICMP"]},
+        {Name: "Other", Value: protocolCounts["Other"]},
+    })
 
-    // Prepare data
-    var times []string
-    var counts []opts.BarData
-    for timeStr, count := range packetCountPerMinute {
-        times = append(times, timeStr)
-        counts = append(counts, opts.BarData{Value: count})
-    }
-
-    bar.SetXAxis(times).
-        AddSeries("Packets per Minute", counts)
-
-    return bar
+    return pie
 }
 
-// RecordPacketCount logs the packet count per minute
-func RecordPacketCount() {
+// RecordPacketCount logs the packet count per minute and updates protocol counts
+func RecordPacketCount(packetProtocol string) {
     currentTime := time.Now().Format("15:04")
     packetCountMutex.Lock()
     packetCountPerMinute[currentTime]++
+    protocolCounts[packetProtocol]++
     packetCountMutex.Unlock()
 }
 
-// BroadcastAlert sends an alert message to all connected WebSocket clients
-func BroadcastAlert(message string) {
+// SendAlert sends an alert message to all connected WebSocket clients
+func SendAlert(alertMessage string) {
     alertsMutex.Lock()
     defer alertsMutex.Unlock()
 
     for _, conn := range alertsConn {
-        err := conn.WriteMessage(websocket.TextMessage, []byte(message))
+        err := conn.WriteMessage(websocket.TextMessage, []byte(alertMessage))
         if err != nil {
             log.Println("Failed to send alert:", err)
             conn.Close()
@@ -198,7 +127,3 @@ func BroadcastAlert(message string) {
     }
 }
 
-// SendAlert sends an alert to the alertChannel
-func SendAlert(alert string) {
-    alertChannel <- alert
-}

@@ -11,6 +11,7 @@ import (
     "github.com/blondon1/ai_driven_network_forensics_tool/src/reporting"
     "github.com/blondon1/ai_driven_network_forensics_tool/src/ui"
     "github.com/google/gopacket"
+    "github.com/google/gopacket/layers"  // Import the necessary layers package
     "gopkg.in/yaml.v2"
     "github.com/google/gopacket/pcap"
     "fmt"
@@ -37,7 +38,6 @@ func loadConfig() (SystemConfig, error) {
 }
 
 func setupLogging(logFilePath string) (*os.File, error) {
-    // Ensure the directory structure exists
     err := os.MkdirAll(filepath.Dir(logFilePath), os.ModePerm)
     if err != nil {
         return nil, err
@@ -78,9 +78,8 @@ func main() {
 
     packets := make(chan gopacket.Packet)
 
-    // Define the filter configuration with BPF
     filterConfig := data_ingestion.FilterConfig{
-        BPF:       "tcp",  // Example BPF filter for capturing only TCP packets
+        BPF:       "tcp",
         IPAddress: "",
         Port:      0,
         Protocol:  "",
@@ -97,11 +96,19 @@ func main() {
     for packet := range packets {
         preprocessing.PreprocessPacket(packet)
         analysis.AnalyzePacket(packet)
+        protocol := "Other"
+        if packet.TransportLayer() != nil {
+            switch packet.TransportLayer().LayerType() {
+            case layers.LayerTypeTCP:  // Use layers.LayerTypeTCP here
+                protocol = "TCP"
+            case layers.LayerTypeUDP:  // Use layers.LayerTypeUDP here
+                protocol = "UDP"
+            }
+        }
+        ui.RecordPacketCount(protocol)
         real_time_analysis.AnalyzeInRealTime(packet)
-        ui.RecordPacketCount() // Add this line to ensure packets are counted per minute
         reporting.GenerateReport(packet)
     }
-    
-    
+
     log.Println("Shutting down AI-Driven Network Forensics Tool")
 }

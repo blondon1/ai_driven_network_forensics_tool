@@ -11,7 +11,7 @@ import (
 )
 
 type FilterConfig struct {
-    BPF string  // Added BPF as a string field for Berkeley Packet Filter expressions
+    BPF       string  // Added BPF as a string field for Berkeley Packet Filter expressions
     IPAddress string
     Port      int
     Protocol  string

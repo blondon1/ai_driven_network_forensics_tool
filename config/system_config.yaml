@@ -3,7 +3,6 @@
 network_interface: "eth0"
 log_file_path: "data/logs/system.log"
 
-
 filter:
   source_ip: ""
   destination_ip: ""
@@ -12,4 +11,3 @@ filter:
 
 incident_response:
   HighPacketSizeDetected: "sh -c 'echo \"High packet size detected\" | mail -s \"Network Alert\" admin@example.com'"
-
