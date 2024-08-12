@@ -79,11 +79,12 @@ func main() {
     packets := make(chan gopacket.Packet)
 
     filterConfig := data_ingestion.FilterConfig{
-        BPF:       "tcp",
+        BPF:       "",  // Capture all types of packets
         IPAddress: "",
         Port:      0,
         Protocol:  "",
     }
+
 
     go func() {
         data_ingestion.CapturePackets(config.NetworkInterface, packets, filterConfig)
@@ -103,6 +104,10 @@ func main() {
                 protocol = "TCP"
             case layers.LayerTypeUDP:  // Use layers.LayerTypeUDP here
                 protocol = "UDP"
+            default:
+                if packet.Layer(layers.LayerTypeICMPv4) != nil || packet.Layer(layers.LayerTypeICMPv6) != nil {
+                    protocol = "ICMP"
+                }
             }
         }
         ui.RecordPacketCount(protocol)
