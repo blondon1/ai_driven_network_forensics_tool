@@ -8,11 +8,7 @@ filter:
   destination_ip: ""
   protocol: ""
   port: ""
-  bpf: ""  # Example: "tcp and port 80"
 
 incident_response:
   HighPacketSizeDetected: "sh -c 'echo \"High packet size detected\" | mail -s \"Network Alert\" admin@example.com'"
 
-authentication:
-  username: "admin"
-  password: "password"

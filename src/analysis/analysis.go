@@ -1,12 +1,12 @@
 package analysis
 
 import (
-	"fmt"
-	"github.com/google/gopacket"
-	"log"
-	"sync"
-	"time"
+    "fmt"
+    "github.com/google/gopacket"
+    "sync"
+    "time"
 )
+
 
 // Packet size statistics
 type PacketSizeStats struct {
