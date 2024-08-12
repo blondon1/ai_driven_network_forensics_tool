@@ -3,6 +3,7 @@
 network_interface: "eth0"
 log_file_path: "data/logs/system.log"
 
+
 filter:
   source_ip: ""
   destination_ip: ""

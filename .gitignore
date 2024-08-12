@@ -6,3 +6,11 @@ data/logs/*.log
 *.bak
 *.swp
 *.txt
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.lz
+*.tar.lzma
+*.tar.Z
+*.exe

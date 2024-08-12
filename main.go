@@ -101,6 +101,7 @@ func main() {
         ui.RecordPacketCount() // Add this line to ensure packets are counted per minute
         reporting.GenerateReport(packet)
     }
-
+    
+    
     log.Println("Shutting down AI-Driven Network Forensics Tool")
 }
