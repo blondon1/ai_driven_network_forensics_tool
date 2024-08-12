@@ -4,6 +4,7 @@ import (
     "log"
     "os"
     "path/filepath"
+    "gopkg.in/yaml.v2"
     "github.com/blondon1/ai_driven_network_forensics_tool/src/analysis"
     "github.com/blondon1/ai_driven_network_forensics_tool/src/data_ingestion"
     "github.com/blondon1/ai_driven_network_forensics_tool/src/preprocessing"
@@ -11,10 +12,8 @@ import (
     "github.com/blondon1/ai_driven_network_forensics_tool/src/reporting"
     "github.com/blondon1/ai_driven_network_forensics_tool/src/ui"
     "github.com/google/gopacket"
-    "github.com/google/gopacket/layers"  // Import the necessary layers package
-    "gopkg.in/yaml.v2"
     "github.com/google/gopacket/pcap"
-    "fmt"
+    "github.com/google/gopacket/layers" // Import for LayerTypeTCP and LayerTypeUDP
 )
 
 type SystemConfig struct {
@@ -28,12 +27,10 @@ func loadConfig() (SystemConfig, error) {
     if err != nil {
         return config, err
     }
-
     err = yaml.Unmarshal(data, &config)
     if err != nil {
         return config, err
     }
-
     return config, nil
 }
 
@@ -42,7 +39,6 @@ func setupLogging(logFilePath string) (*os.File, error) {
     if err != nil {
         return nil, err
     }
-
     logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
     if err != nil {
         return nil, err
@@ -58,9 +54,9 @@ func main() {
         log.Fatal(err)
     }
 
-    fmt.Println("Devices found:")
+    log.Println("Devices found:")
     for _, device := range devices {
-        fmt.Printf("Name: %s, Description: %s\n", device.Name, device.Description)
+        log.Printf("Name: %s, Description: %s\n", device.Name, device.Description)
     }
 
     config, err := loadConfig()
@@ -79,12 +75,11 @@ func main() {
     packets := make(chan gopacket.Packet)
 
     filterConfig := data_ingestion.FilterConfig{
-        BPF:       "",  // Capture all types of packets
+        BPF:       "tcp",
         IPAddress: "",
         Port:      0,
         Protocol:  "",
     }
-
 
     go func() {
         data_ingestion.CapturePackets(config.NetworkInterface, packets, filterConfig)
@@ -95,21 +90,20 @@ func main() {
     }()
 
     for packet := range packets {
+        log.Println("Processing packet")
         preprocessing.PreprocessPacket(packet)
         analysis.AnalyzePacket(packet)
+
         protocol := "Other"
         if packet.TransportLayer() != nil {
             switch packet.TransportLayer().LayerType() {
-            case layers.LayerTypeTCP:  // Use layers.LayerTypeTCP here
+            case layers.LayerTypeTCP:
                 protocol = "TCP"
-            case layers.LayerTypeUDP:  // Use layers.LayerTypeUDP here
+            case layers.LayerTypeUDP:
                 protocol = "UDP"
-            default:
-                if packet.Layer(layers.LayerTypeICMPv4) != nil || packet.Layer(layers.LayerTypeICMPv6) != nil {
-                    protocol = "ICMP"
-                }
             }
         }
+        log.Printf("Packet protocol: %s", protocol)
         ui.RecordPacketCount(protocol)
         real_time_analysis.AnalyzeInRealTime(packet)
         reporting.GenerateReport(packet)

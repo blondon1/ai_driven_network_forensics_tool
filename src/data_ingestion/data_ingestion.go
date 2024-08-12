@@ -59,3 +59,4 @@ func SavePacketToDatabase(db *sql.DB, packet gopacket.Packet) {
         }
     }
 }
+

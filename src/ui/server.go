@@ -40,7 +40,7 @@ func StartServer() {
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
     page := components.NewPage()
-    page.AddCharts(generateTrafficLineChart(), generateProtocolPieChart())
+    page.AddCharts(generateTrafficLineChart(), generateProtocolPieChart(), generateAnomalyChart())
     page.Render(w)
 }
 
@@ -78,12 +78,9 @@ func generateTrafficLineChart() *charts.Line {
         times = append(times, timeStr)
         counts = append(counts, opts.LineData{Value: count})
     }
-    smoothValue := true
+
     line.SetXAxis(times).
-        AddSeries("Packets per Minute", counts).
-        SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{
-            Smooth: &smoothValue,  // Passed as a pointer
-        }))
+        AddSeries("Packets per Minute", counts)
 
     return line
 }
@@ -104,6 +101,27 @@ func generateProtocolPieChart() *charts.Pie {
     return pie
 }
 
+func generateAnomalyChart() *charts.Bar {
+    bar := charts.NewBar()
+    bar.SetGlobalOptions(charts.WithTitleOpts(opts.Title{
+        Title: "AI Detected Anomalies",
+    }))
+
+    var anomalies []opts.BarData
+    var times []string
+
+    // Simulate adding detected anomalies for illustration
+    for i := 0; i < 10; i++ {
+        times = append(times, time.Now().Add(-time.Duration(i)*time.Minute).Format("15:04"))
+        anomalies = append(anomalies, opts.BarData{Value: i})
+    }
+
+    bar.SetXAxis(times).
+        AddSeries("Anomalies", anomalies)
+
+    return bar
+}
+
 // RecordPacketCount logs the packet count per minute and updates protocol counts
 func RecordPacketCount(packetProtocol string) {
     currentTime := time.Now().Format("15:04")
@@ -119,11 +137,9 @@ func SendAlert(alertMessage string) {
     defer alertsMutex.Unlock()
 
     for _, conn := range alertsConn {
-        err := conn.WriteMessage(websocket.TextMessage, []byte(alertMessage))
-        if err != nil {
+        if err := conn.WriteMessage(websocket.TextMessage, []byte(alertMessage)); err != nil {
             log.Println("Failed to send alert:", err)
             conn.Close()
         }
     }
 }
-
