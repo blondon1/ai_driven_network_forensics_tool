@@ -5,39 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Driven Network Forensics Tool Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Roboto', sans-serif;
+        }
+        h1, h3 {
+            color: #bb86fc;
+        }
+        .container-fluid {
+            padding: 20px;
+        }
+        .card {
+            background-color: #1f1f1f;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #272727;
+            border-bottom: none;
+            color: #bb86fc;
+        }
+        .card-body {
+            background-color: #1f1f1f;
+            color: #e0e0e0;
+        }
+        .chart-container {
+            padding: 20px;
+        }
+        .navbar {
+            background-color: #272727;
+        }
+        .navbar-brand {
+            color: #bb86fc;
+            font-weight: bold;
+        }
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+    </style>
 </head>
-<body>
-    <div class="container-fluid">
-        <h1 class="mt-4">Network Traffic Dashboard</h1>
-        <div class="row">
-            <div class="col-md-6">
-                <h3>Traffic Overview</h3>
-                <div id="traffic-chart">
-                    <!-- Traffic Line Chart will be rendered here -->
-                    <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <h3>Real-Time Alerts</h3>
-                <div id="alerts">
-                    <!-- Alerts will be displayed here -->
-                    <iframe src="/alerts" width="100%" height="400px" frameborder="0"></iframe>
-                </div>
-            </div>
+<body class="dark-mode">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Network Forensics Dashboard</a>
         </div>
-        <div class="row mt-4">
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <h1 class="mt-4">Network Traffic Overview</h1>
+            </div>
             <div class="col-md-6">
-                <h3>Protocol Distribution</h3>
-                <div id="protocol-chart">
-                    <!-- Protocol Pie Chart will be rendered here -->
-                    <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
+                <div class="card">
+                    <div class="card-header">
+                        Network Traffic
+                    </div>
+                    <div class="card-body">
+                        <div id="traffic-chart" class="chart-container">
+                            <!-- Traffic Line Chart will be rendered here -->
+                            <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <h3>AI Detected Anomalies</h3>
-                <div id="anomaly-chart">
-                    <!-- Anomalies will be displayed here -->
-                    <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
+                <div class="card">
+                    <div class="card-header">
+                        Protocol Distribution
+                    </div>
+                    <div class="card-body">
+                        <div id="protocol-chart" class="chart-container">
+                            <!-- Protocol Pie Chart will be rendered here -->
+                            <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        AI Detected Anomalies
+                    </div>
+                    <div class="card-body">
+                        <div id="anomalies-chart" class="chart-container">
+                            <!-- Anomalies Bar Chart will be rendered here -->
+                            <iframe src="/charts" width="100%" height="400px" frameborder="0"></iframe>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
